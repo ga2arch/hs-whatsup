@@ -22,7 +22,7 @@ data Element = Element {
     elUrl :: L.ByteString
 ,   elRegPositive :: [S.ByteString]
 ,   elRegNegative :: [S.ByteString]
-,   elStatus :: Bool
+,   elOnline :: Bool
 } deriving (Show)
 
 instance FromJSON Element where
@@ -30,14 +30,14 @@ instance FromJSON Element where
                             v .: "url" <*>
                             v .: "reg_positive" <*>
                             v .: "reg_negative" <*>
-                            v .: "status" 
+                            v .: "online" 
     parseJSON _ = mzero
 
 instance ToJSON Element where
-    toJSON (Element url rp rn status) = object [ "url" .= url
+    toJSON (Element url rp rn online) = object [ "url" .= url
                                                , "reg_positive" .= rp
                                                , "reg_negative" .= rn
-                                               , "status" .= status]
+                                               , "online" .= online]
 
 --------------------------------------
 
