@@ -15,10 +15,13 @@ import Data.Aeson
 import Database.CouchDB.Conduit
 import Database.CouchDB.Conduit.Explicit
 
+import qualified Data.ByteString.Char8 as S
+import qualified Data.ByteString.Lazy.Char8 as L
+
 data Element = Element {
-    elemUrl :: String
-,   elemRegPositive :: [String]
-,   elemRegNegative :: [String]
+    elemUrl :: L.ByteString
+,   elemRegPositive :: [S.ByteString]
+,   elemRegNegative :: [S.ByteString]
 ,   elemStatus :: Bool
 } deriving (Show)
 
@@ -39,7 +42,7 @@ instance ToJSON Element where
 --------------------------------------
 
 data DocValue = DocValue {
-    docRev :: String
+    docRev :: L.ByteString
 } deriving (Show)
 
 instance FromJSON DocValue where
@@ -48,8 +51,8 @@ instance FromJSON DocValue where
 --------------------------------------
 
 data Doc = Doc {
-    docId :: String
-,   docKey :: Path
+    docId :: S.ByteString
+,   docKey :: S.ByteString
 ,   docValue :: DocValue      
 } deriving (Show)
 
@@ -87,7 +90,7 @@ instance FromJSON Results where
 
 data Change = Change {
     chSeq :: Int
-,   chId :: String
+,   chId :: L.ByteString
 ,   chChanges :: [DocValue]
 ,   chDeleted :: Maybe Bool
 } deriving (Show)

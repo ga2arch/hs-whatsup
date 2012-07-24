@@ -8,12 +8,14 @@ import Control.Concurrent
 import Control.Exception
 import Control.Monad.IO.Class (liftIO)
 import Data.Aeson
+import Data.Maybe
 import Database.CouchDB.Conduit
 import Database.CouchDB.Conduit.Explicit
-import Network.HTTP
-import Network.Browser
-import Text.RegexPR
+import Text.Regex.PCRE.Light
 import System.Timeout
+
+import Network.HTTP.Conduit
+import Network.HTTP.Conduit.Browser
 
 import qualified Data.ByteString.Char8      as S
 import qualified Data.ByteString.Lazy.Char8 as L
@@ -24,16 +26,17 @@ import Types
 main :: IO ()
 main = do
     runCouch def $ do
-        {--j <- couchGetAllDocs "elements"
+        j <- couchGetAllDocs "elements"
         --couchPut "elements" "google" "" [] $ 
         --            Element "http://www.google.it" [] [] True
+        --(r, elem) <- couchGet "elements" "google" []
         l <- mapM (\e -> do 
             (r, elem) <- couchGet "elements" (docKey e) []
             s <- liftIO $ processUrl elem
             return s) (docs j)
-        liftIO $ print l--}
-        couchChanges "elements" (liftIO . print) 
-    return ()
+        liftIO $ print l
+        --couchChanges "elements" (liftIO . print) 
+        return ()
 
 processUrl :: Element -> IO (Bool)
 processUrl Element{..} = do
@@ -48,23 +51,21 @@ processUrl Element{..} = do
   where
     handleIO ex = return Nothing
 
-checkUrl :: String -> IO (Maybe String)
-checkUrl url = do
-    (_, rsp) <- browse $ do
-        setAllowRedirects True
-        setOutHandler (const $ return ())
-        setErrHandler (const $ return ())
-        request $ getRequest url
-    return $ Just (rspBody rsp)
+checkUrl :: L.ByteString -> IO (Maybe L.ByteString)
+checkUrl url = simpleHttp (L.unpack url) >>= return . Just 
 
-checkReggie :: String -> [String] -> [String] -> Bool
+checkReggie :: L.ByteString -> [S.ByteString] -> [S.ByteString] -> Bool
 checkReggie content pos neg = null p && null n
   where
     p = filter (==False) $ map (checkRegex content) pos
     n = filter (==True)  $ map (checkRegex content) neg
 
-checkRegex :: String -> String -> Bool
+checkRegex :: L.ByteString -> S.ByteString -> Bool
 checkRegex content regex = 
-    case (matchRegexPR regex content) of
-        Just _  -> True
-        Nothing -> False
+    case rex of 
+        Left s  -> False
+        Right r -> isJust $ match r (toStrict content) [] 
+  where
+    rex = compileM regex [] 
+
+toStrict = S.concat . L.toChunks 
