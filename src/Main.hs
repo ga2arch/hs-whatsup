@@ -56,7 +56,7 @@ processUrl Element{..} = do
     handleIO _ = return Nothing
 
 checkUrl :: L.ByteString -> IO (Maybe L.ByteString)
-checkUrl url = simpleHttp (L.unpack url) >>= return . Just 
+checkUrl url = liftM Just $ simpleHttp (L.unpack url) -->>= return . Just 
 
 checkReggie :: L.ByteString -> [S.ByteString] -> [S.ByteString] -> Bool
 checkReggie content pos neg = null p && null n
