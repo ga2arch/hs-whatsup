@@ -93,7 +93,7 @@ instance FromJSON Results where
 
 data Change = Change {
     chSeq :: Int
-,   chId :: L.ByteString
+,   chId :: S.ByteString
 ,   chChanges :: [DocValue]
 ,   chDeleted :: Maybe Bool
 } deriving (Show)
