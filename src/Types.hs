@@ -19,10 +19,10 @@ import qualified Data.ByteString.Char8 as S
 import qualified Data.ByteString.Lazy.Char8 as L
 
 data Element = Element {
-    elemUrl :: L.ByteString
-,   elemRegPositive :: [S.ByteString]
-,   elemRegNegative :: [S.ByteString]
-,   elemStatus :: Bool
+    elUrl :: L.ByteString
+,   elRegPositive :: [S.ByteString]
+,   elRegNegative :: [S.ByteString]
+,   elStatus :: Bool
 } deriving (Show)
 
 instance FromJSON Element where

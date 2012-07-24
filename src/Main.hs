@@ -43,13 +43,13 @@ main = do
 
 processUrl :: Element -> IO (Bool)
 processUrl Element{..} = do
-    body <- (checkUrl elemUrl) 
+    body <- (checkUrl elUrl) 
         `catch` (\(ex :: IOException) -> handleIO ex)
     case body of 
         Just content -> return $ 
                             checkReggie content 
-                                        elemRegPositive 
-                                        elemRegNegative
+                                        elRegPositive 
+                                        elRegNegative
         Nothing      -> return False
   where
     handleIO _ = return Nothing
