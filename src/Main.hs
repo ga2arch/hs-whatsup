@@ -16,6 +16,7 @@ import Prelude hiding (catch)
 import Control.Concurrent
 import Control.Exception
 import Control.Monad
+import Data.Time.Clock.POSIX
 import Database.CouchDB.Conduit
 import Database.CouchDB.Conduit.Explicit
 import Text.Regex.PCRE.Light
@@ -37,10 +38,22 @@ main = do
         case r of
             Left (CouchHttpError a _)   -> putStrLn (show a)
             Left (CouchInternalError e) -> putStrLn (show e)
-            Left (NotModified)          -> putStrLn ("Not modified" :: String)
-            Right (_, el)               -> processUrl el >>= putStrLn . show
+            Left (NotModified)          -> putStrLn "Not modified"
+            Right (_, el)               -> if (elFlag el) 
+                                            then updateElement chId el
+                                            else return ()
 
     runCouch def $ couchContinuousChanges "elements" chan
+
+updateElement :: S.ByteString -> Element -> IO ()
+updateElement chId el = do
+    t <- liftM floor getPOSIXTime
+    s <- processUrl el
+    _ <- runCouch def $ couchPut' "elements" chId [] $ 
+                            el { elOnline = s 
+                               , elFlag = False
+                               , elLastCheck = t }
+    putStrLn (show s)
 
 processUrl :: Element -> IO (Bool)
 processUrl Element{..} = do
@@ -56,7 +69,7 @@ processUrl Element{..} = do
     handleIO _ = return Nothing
 
 checkUrl :: L.ByteString -> IO (Maybe L.ByteString)
-checkUrl url = liftM Just $ simpleHttp (L.unpack url) -->>= return . Just 
+checkUrl url = liftM Just $ simpleHttp (L.unpack url)
 
 checkReggie :: L.ByteString -> [S.ByteString] -> [S.ByteString] -> Bool
 checkReggie content pos neg = null p && null n
