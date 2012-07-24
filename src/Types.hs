@@ -1,4 +1,6 @@
-{-# LANGUAGE DeriveDataTypeable, OverloadedStrings #-}
+{-# LANGUAGE DeriveDataTypeable #-}
+{-# LANGUAGE OverloadedStrings #-} 
+{-# OPTIONS -Wall #-}
 
 module Types 
     ( Element(..)
@@ -12,8 +14,6 @@ module Types
 import Control.Applicative
 import Control.Monad
 import Data.Aeson
-import Database.CouchDB.Conduit
-import Database.CouchDB.Conduit.Explicit
 
 import qualified Data.ByteString.Char8 as S
 import qualified Data.ByteString.Lazy.Char8 as L
@@ -47,6 +47,7 @@ data DocValue = DocValue {
 
 instance FromJSON DocValue where
     parseJSON (Object v) = DocValue <$> v .: "rev"
+    parseJSON _ = mzero
 
 --------------------------------------
 
@@ -76,6 +77,7 @@ instance FromJSON Docs where
                             v .: "total_rows" <*>
                             v .: "offset" <*>
                             v .: "rows"
+    parseJSON _ = mzero
 
 --------------------------------------
 
@@ -85,6 +87,7 @@ data Results = Results {
 
 instance FromJSON Results where
     parseJSON (Object v) = Results <$> v .: "results"
+    parseJSON _ = mzero
 
 --------------------------------------
 
@@ -101,3 +104,4 @@ instance FromJSON Change where
                             v .: "id"  <*>
                             v .: "changes" <*>
                             v .:? "deleted"
+    parseJSON _ = mzero

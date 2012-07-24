@@ -1,27 +1,30 @@
-{-# LANGUAGE OverloadedStrings, ScopedTypeVariables, RecordWildCards #-}
+{-# LANGUAGE OverloadedStrings #-} 
+{-# LANGUAGE ScopedTypeVariables #-}
+{-# LANGUAGE RecordWildCards #-}
+{-# OPTIONS -Wall #-}
 
 module Main where
 
+-- local
+import Couch
+import Types
+
+-- GHC 
 import Prelude hiding (catch)
 
-import Control.Concurrent
+-- libraries
 import Control.Exception
 import Control.Monad.IO.Class (liftIO)
-import Data.Aeson
-import Data.Maybe
 import Database.CouchDB.Conduit
 import Database.CouchDB.Conduit.Explicit
 import Text.Regex.PCRE.Light
-import System.Timeout
-
 import Network.HTTP.Conduit
-import Network.HTTP.Conduit.Browser
 
 import qualified Data.ByteString.Char8      as S
 import qualified Data.ByteString.Lazy.Char8 as L
 
-import Couch
-import Types 
+-- std
+import Data.Maybe
 
 main :: IO ()
 main = do
@@ -31,8 +34,8 @@ main = do
         --            Element "http://www.google.it" [] [] True
         --(r, elem) <- couchGet "elements" "google" []
         l <- mapM (\e -> do 
-            (r, elem) <- couchGet "elements" (docKey e) []
-            s <- liftIO $ processUrl elem
+            (_, el) <- couchGet "elements" (docKey e) []
+            s <- liftIO $ processUrl el
             return s) (docs j)
         liftIO $ print l
         --couchChanges "elements" (liftIO . print) 
@@ -49,7 +52,7 @@ processUrl Element{..} = do
                                         elemRegNegative
         Nothing      -> return False
   where
-    handleIO ex = return Nothing
+    handleIO _ = return Nothing
 
 checkUrl :: L.ByteString -> IO (Maybe L.ByteString)
 checkUrl url = simpleHttp (L.unpack url) >>= return . Just 
@@ -63,9 +66,10 @@ checkReggie content pos neg = null p && null n
 checkRegex :: L.ByteString -> S.ByteString -> Bool
 checkRegex content regex = 
     case rex of 
-        Left s  -> False
+        Left  _ -> False
         Right r -> isJust $ match r (toStrict content) [] 
   where
     rex = compileM regex [] 
 
+toStrict :: L.ByteString -> S.ByteString
 toStrict = S.concat . L.toChunks 

@@ -1,18 +1,22 @@
 {-# LANGUAGE OverloadedStrings #-}
-module Couch where 
+{-# OPTIONS -Wall #-}
 
+module Couch 
+    ( couchGetAllDocs
+    , couchChanges
+    ) where 
+
+-- friends
+import Types
+
+-- libraries
 import Control.Exception
 import Data.Aeson
 import Data.Conduit
-import Data.Void
 import Database.CouchDB.Conduit
-import Database.CouchDB.Conduit.DB
-import Database.CouchDB.Conduit.Generic
 import Database.CouchDB.Conduit.LowLevel
 import Data.String.Conversions ((<>), cs)
-import Text.Printf
 
-import qualified Data.Aeson.Generic as AG
 import qualified Data.ByteString.Char8 as S
 import qualified Data.ByteString.Lazy.Char8 as L
 import qualified Data.Conduit.Attoparsec as CA
@@ -20,7 +24,8 @@ import qualified Data.Conduit.Binary as CB
 import qualified Network.HTTP.Conduit as H
 import qualified Network.HTTP.Types   as HT
 
-import Types
+-- std
+import Data.Void
 
 couchGetAllDocs :: MonadCouch m => Path -> m (Docs)
 couchGetAllDocs db = do
