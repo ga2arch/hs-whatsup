@@ -1,7 +1,7 @@
 {-# LANGUAGE OverloadedStrings #-} 
 {-# LANGUAGE ScopedTypeVariables #-}
 {-# LANGUAGE RecordWildCards #-}
-{-# OPTIONS -Wall #-}
+--{-# OPTIONS -Wall #-}
 
 module Main where
 
@@ -13,13 +13,18 @@ import Types
 import Prelude hiding (catch)
 
 -- libraries
+import Control.Concurrent
+import Control.Concurrent.Chan
 import Control.Exception
+import Control.Monad
 import Control.Monad.IO.Class (liftIO)
+import Data.Conduit
 import Database.CouchDB.Conduit
 import Database.CouchDB.Conduit.Explicit
 import Text.Regex.PCRE.Light
 import Network.HTTP.Conduit
 
+import qualified Data.Conduit.List as CL
 import qualified Data.ByteString.Char8      as S
 import qualified Data.ByteString.Lazy.Char8 as L
 
@@ -28,18 +33,16 @@ import Data.Maybe
 
 main :: IO ()
 main = do
-    runCouch def $ do
-        j <- couchGetAllDocs "elements"
-        --couchPut "elements" "google" "" [] $ 
-        --            Element "http://www.google.it" [] [] True
-        --(r, elem) <- couchGet "elements" "google" []
-        l <- mapM (\e -> do 
-            (_, el) <- couchGet "elements" (docKey e) []
-            s <- liftIO $ processUrl el
-            return s) (docs j)
-        liftIO $ print l
-        --couchChanges "elements" (liftIO . print) 
-        return ()
+    chan <- newChan
+
+    forkIO . forever $ do
+        Change{..} <- readChan chan
+        r <- try $ runCouch def (couchGet "elements" chId []) 
+        case r of
+            Left (CouchHttpError a b) -> print (show a)
+            Right (_, el) -> processUrl el >>= print
+
+    runCouch def $ couchContinuousChanges "elements" chan
 
 processUrl :: Element -> IO (Bool)
 processUrl Element{..} = do
