@@ -35,10 +35,10 @@ main = do
         Change{..} <- readChan chan
         r <- try $ runCouch def (couchGet "elements" chId []) 
         case r of
-            Left (CouchHttpError a _) -> putStrLn (show a)
+            Left (CouchHttpError a _)   -> putStrLn (show a)
             Left (CouchInternalError e) -> putStrLn (show e)
-            Left NotModified -> putStrLn ("Not modified" :: String)
-            Right (_, el) -> processUrl el >>= print
+            Left (NotModified)          -> putStrLn ("Not modified" :: String)
+            Right (_, el)               -> processUrl el >>= putStrLn . show
 
     runCouch def $ couchContinuousChanges "elements" chan
 
