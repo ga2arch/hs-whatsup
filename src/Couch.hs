@@ -45,7 +45,7 @@ couchContinuousChanges db = do
     return $ s $= conduit
   where
     toLazy x = L.fromChunks [x]
-    path = S.append db "/_changes?feed=continuous&heartbeat=3000"
+    path = S.append db "/_changes?feed=continuous&heartbeat=5000"
     conduit = CB.lines =$= (awaitForever processInput)
     processInput input = do
         let mch = decode (toLazy input)
