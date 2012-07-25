@@ -8,7 +8,7 @@ module Types
     , Doc(..)
     , Docs(..)    
     , Change(..)
-    , Results(..)
+--   , Results(..)
     ) where
 
 import Control.Applicative
@@ -25,6 +25,7 @@ data Element = Element {
 ,   elOnline :: Bool
 ,   elFlag :: Bool
 ,   elLastCheck :: Integer
+,   elError :: String
 } deriving (Show)
 
 instance FromJSON Element where
@@ -34,17 +35,19 @@ instance FromJSON Element where
                             v .:? "reg_negative" .!= [] <*>
                             v .:? "online" .!= False <*>
                             v .:? "flag"   .!= True  <*>
-                            v .:? "last_check" .!= 0
+                            v .:? "last_check" .!= 0 <*>
+                            v .:? "error" .!= ""
     parseJSON _ = mzero
 
 instance ToJSON Element where
-    toJSON (Element url rp rn online flag lc) = 
+    toJSON (Element url rp rn online flag lc err) = 
         object [ "url" .= url
                , "reg_positive" .= rp
                , "reg_negative" .= rn
                , "online" .= online
                , "flag" .= flag
-               , "last_check" .= lc]
+               , "last_check" .= lc
+               , "error" .= err]
 
 --------------------------------------
 
@@ -73,31 +76,6 @@ instance FromJSON Doc where
 
 --------------------------------------
 
-data Docs = Docs {
-    docsTotalRows :: Int
-,   docsOffset :: Int
-,   docs :: [Doc]
-} deriving (Show)
-
-instance FromJSON Docs where
-    parseJSON (Object v) = Docs <$>
-                            v .: "total_rows" <*>
-                            v .: "offset" <*>
-                            v .: "rows"
-    parseJSON _ = mzero
-
---------------------------------------
-
-data Results = Results {
-    results :: [Change]
-} deriving (Show)
-
-instance FromJSON Results where
-    parseJSON (Object v) = Results <$> v .: "results"
-    parseJSON _ = mzero
-
---------------------------------------
-
 data Change = Change {
     chSeq :: Int
 ,   chId :: S.ByteString
@@ -112,3 +90,30 @@ instance FromJSON Change where
                             v .: "changes" <*>
                             v .:? "deleted"
     parseJSON _ = mzero
+
+--------------------------------------
+
+data Docs = Docs {
+    docsTotalRows :: Int
+,   docsOffset :: Int
+,   docs :: [Doc]
+} deriving (Show)
+
+instance FromJSON Docs where
+    parseJSON (Object v) = Docs <$>
+                            v .: "total_rows" <*>
+                            v .: "offset" <*>
+                            v .: "rows"
+    parseJSON _ = mzero
+
+{--------------------------------------
+
+data Results = Results {
+    results :: [Change]
+} deriving (Show)
+
+instance FromJSON Results where
+    parseJSON (Object v) = Results <$> v .: "results"
+    parseJSON _ = mzero
+
+--------------------------------------}

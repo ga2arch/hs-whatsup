@@ -21,6 +21,7 @@ import Database.CouchDB.Conduit
 import Database.CouchDB.Conduit.Explicit
 import Text.Regex.PCRE.Light
 import Network.HTTP.Conduit
+import Network.HTTP.Types.Status
 
 import qualified Data.ByteString.Char8      as S
 import qualified Data.ByteString.Lazy.Char8 as L
@@ -49,29 +50,42 @@ updateElement :: S.ByteString -> Element -> IO ()
 updateElement chId el = do
     t <- liftM floor getPOSIXTime
     s <- processUrl el
-    _ <- runCouch def $ couchPut' "elements" chId [] $ 
-                            el { elOnline = s 
-                               , elFlag = False
-                               , elLastCheck = t }
-    putStrLn (show s)
 
-processUrl :: Element -> IO (Bool)
+    _ <- case s of 
+            Right online -> updateDoc $ el { elOnline = online
+                                           , elLastCheck = t 
+                                           , elError = "" }
+            Left  ex     -> updateDoc $ el { elOnline = False 
+                                           , elError = ex } 
+    putStrLn (show s)
+  where
+    updateDoc e = runCouch def $ 
+        couchPut' "elements" chId [] $ e { elFlag = False }
+
+processUrl :: Element -> IO (Either String Bool)
 processUrl Element{..} = do
     body <- (checkUrl elUrl) 
         `catches` [ Handler (\(ex :: IOException) -> handleIO ex)
                   , Handler (\(ex :: HttpException) -> handleHttp ex)]
     case body of 
-        Just content -> return $ 
+        Right content -> return . Right $ 
                             checkReggie content 
                                         elRegPositive 
                                         elRegNegative
-        Nothing      -> return False
+        Left  ex      -> return $ Left ex
   where
-    handleIO   _ = return Nothing
-    handleHttp _ = return Nothing
+    handleIO   ex = return $ Left (show ex)
+    handleHttp ex = return . Left $ 
+        case ex of 
+            StatusCodeException s _ -> (show $ statusCode s) 
+                                       ++ " - " ++ 
+                                       (S.unpack $ statusMessage s)
+            InvalidUrlException url err -> err ++ " - " ++ url
+            HttpParserException s -> s
+            _ -> (show ex)
  
-checkUrl :: L.ByteString -> IO (Maybe L.ByteString)
-checkUrl url = liftM Just $ simpleHttp (L.unpack url)
+checkUrl :: L.ByteString -> IO (Either String L.ByteString)
+checkUrl url = liftM Right $ simpleHttp (L.unpack url)
 
 checkReggie :: L.ByteString -> [S.ByteString] -> [S.ByteString] -> Bool
 checkReggie content pos neg = null p && null n
