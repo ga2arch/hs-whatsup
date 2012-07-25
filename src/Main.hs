@@ -55,14 +55,17 @@ updateElement chId el = do
     s <- processUrl el
 
     _ <- case s of 
-            Right _   -> updateDoc $ 
-                            el { elOnline = True
-                               , elLastCheck = t 
-                               , elError = Nothing }
+            Right _  -> 
+                updateDoc $ 
+                    el { elOnline = True
+                       , elLastCheck = t 
+                       , elError = Nothing }
 
-            Left  ex  -> updateDoc $ 
-                            el { elOnline = False 
-                               , elError = Just ex } 
+            Left  ex -> 
+                updateDoc $ 
+                    el { elOnline = False 
+                       , elError = Just ex } 
+                       
     putStrLn (show s)
   where
     updateDoc e = runCouch def $ 
