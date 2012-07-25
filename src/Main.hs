@@ -58,7 +58,8 @@ updateElement chId el = do
 processUrl :: Element -> IO (Bool)
 processUrl Element{..} = do
     body <- (checkUrl elUrl) 
-        `catch` (\(ex :: IOException) -> handleIO ex)
+        `catches` [ Handler (\(ex :: IOException) -> handleIO ex)
+                  , Handler (\(ex :: HttpException) -> handleHttp ex)]
     case body of 
         Just content -> return $ 
                             checkReggie content 
@@ -66,8 +67,9 @@ processUrl Element{..} = do
                                         elRegNegative
         Nothing      -> return False
   where
-    handleIO _ = return Nothing
-
+    handleIO   _ = return Nothing
+    handleHttp _ = return Nothing
+ 
 checkUrl :: L.ByteString -> IO (Maybe L.ByteString)
 checkUrl url = liftM Just $ simpleHttp (L.unpack url)
 

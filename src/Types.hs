@@ -30,8 +30,8 @@ data Element = Element {
 instance FromJSON Element where
     parseJSON (Object v) = Element <$> 
                             v .: "url" <*>
-                            v .: "reg_positive" .!= [] <*>
-                            v .: "reg_negative" .!= [] <*>
+                            v .:? "reg_positive" .!= [] <*>
+                            v .:? "reg_negative" .!= [] <*>
                             v .:? "online" .!= False <*>
                             v .:? "flag"   .!= True  <*>
                             v .:? "last_check" .!= 0
