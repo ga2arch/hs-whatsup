@@ -47,7 +47,7 @@ couchContinuousChanges db = do
     path = S.append db "/_changes?feed=continuous&heartbeat=3000"
     conduit = CB.lines =$= (awaitForever processInput)
     processInput input = do
-        let mch = decode (toLazy input) :: Maybe Change
+        let mch = decode (toLazy input)
         case mch of 
             Just ch -> yield ch
             Nothing -> return ()
