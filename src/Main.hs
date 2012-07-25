@@ -13,9 +13,10 @@ import Types
 import Prelude hiding (catch)
 
 -- libraries
-import Control.Concurrent
 import Control.Exception
 import Control.Monad
+import Control.Monad.IO.Class (liftIO)
+import Data.Conduit
 import Data.Time.Clock.POSIX
 import Database.CouchDB.Conduit
 import Database.CouchDB.Conduit.Explicit
@@ -31,20 +32,20 @@ import Data.Maybe
 
 main :: IO ()
 main = do
-    chan <- newChan
+    runCouch def $ do 
+        source <- couchContinuousChanges "elements"
+        source $$ sink
 
-    _ <- forkIO . forever $ do
-        Change{..} <- readChan chan
-        r <- try $ runCouch def (couchGet "elements" chId []) 
-        case r of
-            Left (CouchHttpError a _)   -> putStrLn (show a)
-            Left (CouchInternalError e) -> putStrLn (show e)
-            Left (NotModified)          -> putStrLn "Not modified"
-            Right (_, el)               -> if (elFlag el) 
-                                            then updateElement chId el
-                                            else return ()
-
-    runCouch def $ couchContinuousChanges "elements" chan
+  where
+    sink = awaitForever $ \Change{..} -> do
+            r <- liftIO . try $ runCouch def (couchGet "elements" chId [])  
+            case r of
+                Left (CouchHttpError a _)   -> liftIO $ putStrLn (show a)
+                Left (CouchInternalError e) -> liftIO $ putStrLn (show e)
+                Left (NotModified)          -> liftIO $ putStrLn "Not modified"
+                Right (_, el)               -> if (elFlag el) 
+                                                then liftIO $ updateElement chId el
+                                                else return ()
 
 updateElement :: S.ByteString -> Element -> IO ()
 updateElement chId el = do

@@ -114,8 +114,8 @@ instance FromJSON Docs where
 data CheckError = HttpError  { heException :: String
                              , heMessage :: Maybe String }
                 | IOError    { ioException :: String }
-                | RegexError { rePositive :: [S.ByteString] 
-                             , reNegative :: [S.ByteString] }
+                | RegexError { regPositive :: [S.ByteString] 
+                             , regNegative :: [S.ByteString] }
     deriving (Show)
 
 instance FromJSON CheckError where
@@ -134,14 +134,14 @@ instance FromJSON CheckError where
     parseJSON _ = mzero
 
 instance ToJSON CheckError where 
-    toJSON (HttpError{..}) = object [ "type" .= ("http" :: String)
-                                    , "exception" .= heException
-                                    , "message" .= heMessage ]
-    toJSON (IOError{..}) = object [ "type" .= ("io"  :: String)
-                                  , "exception" .= ioException ]
+    toJSON (HttpError{..})  = object [ "type" .= ("http" :: String)
+                                     , "exception" .= heException
+                                     , "message" .= heMessage ]
+    toJSON (IOError{..})    = object [ "type" .= ("io"  :: String)
+                                     , "exception" .= ioException ]
     toJSON (RegexError{..}) = object [ "type" .= ("regex" :: String)
-                                     , "reg_positive" .= rePositive 
-                                     , "reg_negative" .= reNegative]
+                                     , "reg_positive" .= regPositive 
+                                     , "reg_negative" .= regNegative]
 
 {--------------------------------------
 

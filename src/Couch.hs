@@ -10,8 +10,6 @@ module Couch
 import Types
 
 -- libraries
-import Control.Concurrent.Chan
-import Control.Monad.IO.Class (liftIO)
 import Control.Exception
 import Data.Aeson
 import Data.Conduit
@@ -37,20 +35,21 @@ couchGetAllDocs db = do
     o <- jsonToTypeWith fromJSON j
     return o
 
-couchContinuousChanges :: MonadCouch m => S.ByteString -> Chan Change -> m ()
-couchContinuousChanges db chan = do
+couchContinuousChanges :: MonadCouch m => S.ByteString -> m (Source m Change)
+couchContinuousChanges db = do
     H.Response _ _ _ bsrc <- couch HT.methodGet path 
                                 [(HT.hConnection, "Keep-Alive")] []
                                 (H.RequestBodyBS S.empty) protect'
-    bsrc $$+- sink
+    (s, _) <- unwrapResumable bsrc
+    return $ s $= conduit
   where
     toLazy x = L.fromChunks $ [x]
     path = S.append db "/_changes?feed=continuous&heartbeat=3000"
-    sink = CB.lines =$= (awaitForever processInput)
+    conduit = CB.lines =$= (awaitForever processInput)
     processInput input = do
         let mch = decode (toLazy input) :: Maybe Change
         case mch of 
-            Just ch -> liftIO $ writeChan chan ch
+            Just ch -> yield ch
             Nothing -> return ()
 
 jsonToTypeWith :: MonadResource m => (Value -> Result a) -> Value -> m a
