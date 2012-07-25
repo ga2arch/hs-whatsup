@@ -47,13 +47,13 @@ instance FromJSON Element where
     parseJSON _ = mzero
 
 instance ToJSON Element where
-    toJSON (Element url rp rn s lc err) = 
-        object [ "url" .= url
-               , "reg_positive" .= rp
-               , "reg_negative" .= rn
-               , "success" .= s
-               , "next_check" .= lc
-               , "error" .= err]
+    toJSON Element{..} = 
+        object [ "url" .= elUrl
+               , "reg_positive" .= elRegPositive
+               , "reg_negative" .= elRegNegative
+               , "success" .= elSuccess
+               , "next_check" .= elNextCheck
+               , "error" .= elError ]
 
 --------------------------------------
 

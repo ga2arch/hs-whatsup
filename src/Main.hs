@@ -57,7 +57,7 @@ processElement chId el@Element{..} = do
         threadDelay $ subn (fromJust elNextCheck) c
     updateElement chId el
   where
-    subn (NextCheck nc) cu | cu > nc = (round $ diffUTCTime nc cu) * 1000000
+    subn (NextCheck nc) cu | nc > cu = (round $ diffUTCTime nc cu) * 1000000
                            | otherwise = 0
 
 updateElement :: S.ByteString -> Element -> IO ()

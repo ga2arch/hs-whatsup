@@ -15,10 +15,21 @@ build-type:          Simple
 cabal-version:       >=1.8
 
 executable hs-whatsup
-  main-is:             src/Main.hs
+  main-is:             Main.hs
+  HS-Source-Dirs:       src
   -- other-modules:       
   build-depends:       base ==4.5.*,
-                       warp,
-                       wai-extra,
-                       regexpr,
-                       couchdb-conduit
+                       couchdb-conduit,
+                       pcre-light,
+                       bytestring,
+                       http-types,
+                       http-conduit,
+                       time,
+                       conduit,
+                       transformers,
+                       unordered-containers,
+                       text,
+                       old-locale,
+                       aeson,
+                       attoparsec-conduit,
+                       string-conversions
