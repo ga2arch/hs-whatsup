@@ -44,7 +44,7 @@ couchContinuousChanges db = do
     (s, _) <- unwrapResumable bsrc
     return $ s $= conduit
   where
-    toLazy x = L.fromChunks $ [x]
+    toLazy x = L.fromChunks [x]
     path = S.append db "/_changes?feed=continuous&heartbeat=3000"
     conduit = CB.lines =$= (awaitForever processInput)
     processInput input = do

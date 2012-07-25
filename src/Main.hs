@@ -46,11 +46,11 @@ sinkChanges =
                 Left (CouchHttpError a _)   -> putStrLn (show a)
                 Left (CouchInternalError e) -> putStrLn (show e)
                 Left (NotModified)          -> putStrLn "Not modified"
-                Right (_, el)               -> checkElement chId el
+                Right (_, el)               -> processElement chId el
         return ()
 
-checkElement :: S.ByteString -> Element -> IO ()
-checkElement chId el@Element{..} = do
+processElement :: S.ByteString -> Element -> IO ()
+processElement chId el@Element{..} = do
     c <- getCurrentTime
     case elNextCheck of 
         Just nc -> if c > (fromNC nc) 
