@@ -1,5 +1,6 @@
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE OverloadedStrings #-} 
+{-# LANGUAGE RecordWildCards #-}
 {-# OPTIONS -Wall #-}
 
 module Types 
@@ -9,6 +10,7 @@ module Types
     , Docs(..)    
     , Change(..)
 --   , Results(..)
+    , CheckError(..)
     ) where
 
 import Control.Applicative
@@ -17,6 +19,7 @@ import Data.Aeson
 
 import qualified Data.ByteString.Char8 as S
 import qualified Data.ByteString.Lazy.Char8 as L
+import qualified Data.HashMap.Strict as HM
 
 data Element = Element {
     elUrl :: L.ByteString
@@ -25,7 +28,7 @@ data Element = Element {
 ,   elOnline :: Bool
 ,   elFlag :: Bool
 ,   elLastCheck :: Integer
-,   elError :: String
+,   elError :: Maybe CheckError
 } deriving (Show)
 
 instance FromJSON Element where
@@ -36,7 +39,7 @@ instance FromJSON Element where
                             v .:? "online" .!= False <*>
                             v .:? "flag"   .!= True  <*>
                             v .:? "last_check" .!= 0 <*>
-                            v .:? "error" .!= ""
+                            v .:? "error".!= Nothing
     parseJSON _ = mzero
 
 instance ToJSON Element where
@@ -105,6 +108,40 @@ instance FromJSON Docs where
                             v .: "offset" <*>
                             v .: "rows"
     parseJSON _ = mzero
+
+--------------------------------------
+
+data CheckError = HttpError  { heException :: String
+                             , heMessage :: Maybe String }
+                | IOError    { ioException :: String }
+                | RegexError { rePositive :: [S.ByteString] 
+                             , reNegative :: [S.ByteString] }
+    deriving (Show)
+
+instance FromJSON CheckError where
+    parseJSON (Object v) = 
+        case (HM.lookup "type" v) of
+            Just "http"  -> HttpError <$>
+                              v .: "exception" <*>
+                              v .:? "message" .!= Nothing
+            Just "io"    -> IOError <$>
+                              v .: "exception"
+            Just "regex" -> RegexError <$>
+                              v .: "reg_positive" <*>
+                              v .: "reg_negative"
+            Just _        -> mzero
+            Nothing       -> mzero
+    parseJSON _ = mzero
+
+instance ToJSON CheckError where 
+    toJSON (HttpError{..}) = object [ "type" .= ("http" :: String)
+                                    , "exception" .= heException
+                                    , "message" .= heMessage ]
+    toJSON (IOError{..}) = object [ "type" .= ("io"  :: String)
+                                  , "exception" .= ioException ]
+    toJSON (RegexError{..}) = object [ "type" .= ("regex" :: String)
+                                     , "reg_positive" .= rePositive 
+                                     , "reg_negative" .= reNegative]
 
 {--------------------------------------
 

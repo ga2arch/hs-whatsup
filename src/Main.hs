@@ -52,43 +52,49 @@ updateElement chId el = do
     s <- processUrl el
 
     _ <- case s of 
-            Right online -> updateDoc $ el { elOnline = online
-                                           , elLastCheck = t 
-                                           , elError = "" }
-            Left  ex     -> updateDoc $ el { elOnline = False 
-                                           , elError = ex } 
+            Right _   -> updateDoc $ el { elOnline = True
+                                        , elLastCheck = t 
+                                        , elError = Nothing }
+            Left  ex  -> updateDoc $ el { elOnline = False 
+                                        , elError = Just ex } 
     putStrLn (show s)
   where
     updateDoc e = runCouch def $ 
         couchPut' "elements" chId [] $ e { elFlag = False }
 
-processUrl :: Element -> IO (Either String Bool)
+processUrl :: Element -> IO (Either CheckError ())
 processUrl Element{..} = do
     body <- (checkUrl elUrl) 
         `catches` [ Handler (\(ex :: IOException) -> handleIO ex)
                   , Handler (\(ex :: HttpException) -> handleHttp ex)]
-    case body of 
-        Right content -> return . Right $ 
-                            checkReggie content 
-                                        elRegPositive 
-                                        elRegNegative
-        Left  ex      -> return $ Left ex
+    return $ body >>= checkRegexes elRegPositive elRegNegative
   where
-    handleIO   ex = return $ Left (show ex)
+    handleIO   ex = return . Left . IOError $ show ex
     handleHttp ex = return . Left $ 
         case ex of 
-            StatusCodeException s _ -> (show $ statusCode s) 
-                                       ++ " - " ++ 
-                                       (S.unpack $ statusMessage s)
-            InvalidUrlException url err -> err ++ " - " ++ url
-            HttpParserException s -> s
-            _ -> (show ex)
+            StatusCodeException s _     -> HttpError 
+                                            "StatusCodeException" $ Just $
+                                            (show $ statusCode s) 
+                                            ++ " - " ++ 
+                                            (S.unpack $ statusMessage s)
+            InvalidUrlException url err -> HttpError 
+                                            "InvalidUrlException" $ Just $
+                                            err ++ " - " ++ url
+            HttpParserException s       -> HttpError
+                                            "HttpParserException" $ Just s
+            _                           -> HttpError (show ex) Nothing
  
-checkUrl :: L.ByteString -> IO (Either String L.ByteString)
+checkUrl :: L.ByteString -> IO (Either CheckError L.ByteString)
 checkUrl url = liftM Right $ simpleHttp (L.unpack url)
 
-checkReggie :: L.ByteString -> [S.ByteString] -> [S.ByteString] -> Bool
-checkReggie content pos neg = null p && null n
+checkRegexes :: [S.ByteString] 
+                -> [S.ByteString] 
+                -> L.ByteString
+                -> Either CheckError ()
+checkRegexes pos neg content = 
+    if (null p && null n) 
+        then return ()
+        else Left $ RegexError pos neg
   where
     p = filter (==False) $ map (checkRegex content) pos
     n = filter (==True)  $ map (checkRegex content) neg
