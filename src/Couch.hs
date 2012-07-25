@@ -29,8 +29,9 @@ import qualified Network.HTTP.Types   as HT
 
 couchGetAllDocs :: MonadCouch m => S.ByteString -> m (Docs)
 couchGetAllDocs db = do
-    H.Response _ _ _ bsrc <- couch HT.methodGet (mkPath [db, "_all_docs"]) [] [] 
-                                    (H.RequestBodyBS S.empty) protect'
+    H.Response _ _ _ bsrc <- couch HT.methodGet 
+                                (mkPath [db, "_all_docs"]) [] [] 
+                                (H.RequestBodyBS S.empty) protect'
     j <- bsrc $$+- CA.sinkParser json
     o <- jsonToTypeWith fromJSON j
     return o

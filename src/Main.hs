@@ -13,11 +13,12 @@ import Types
 import Prelude hiding (catch)
 
 -- libraries
+import Control.Concurrent
 import Control.Exception
 import Control.Monad
 import Control.Monad.IO.Class (liftIO)
 import Data.Conduit
-import Data.Time.Clock.POSIX
+import Data.Time.Clock
 import Database.CouchDB.Conduit
 import Database.CouchDB.Conduit.Explicit
 import Text.Regex.PCRE.Light
@@ -39,37 +40,47 @@ main = do
 sinkChanges :: MonadCouch m => Pipe l Change o r m r
 sinkChanges = 
     awaitForever $ \Change{..} -> do
-        r <- liftIO . try $ runCouch def (couchGet "elements" chId [])  
-        case r of
-            Left (CouchHttpError a _)   -> liftIO $ putStrLn (show a)
-            Left (CouchInternalError e) -> liftIO $ putStrLn (show e)
-            Left (NotModified)          -> liftIO $ putStrLn "Not modified"
-            Right (_, el)               -> if (elFlag el) 
-                                            then liftIO $ 
-                                                updateElement chId el
-                                            else return ()
+        _ <- liftIO . forkIO $ do
+            r <-  try $ runCouch def (couchGet "elements" chId [])
+            case r of
+                Left (CouchHttpError a _)   -> putStrLn (show a)
+                Left (CouchInternalError e) -> putStrLn (show e)
+                Left (NotModified)          -> putStrLn "Not modified"
+                Right (_, el)               -> checkElement chId el
+        return ()
+
+checkElement :: S.ByteString -> Element -> IO ()
+checkElement chId el@Element{..} = do
+    c <- getCurrentTime
+    case elNextCheck of 
+        Just nc -> if c > (fromNC nc) 
+                    then updateElement chId el 
+                    else (threadDelay $ subn nc c)
+                         >> updateElement chId el
+        Nothing -> updateElement chId el
+  where
+    subn (NextCheck nc) n = (round $ diffUTCTime nc n) * 1000000
 
 updateElement :: S.ByteString -> Element -> IO ()
 updateElement chId el = do
-    t <- liftM floor getPOSIXTime
     s <- processUrl el
-
     _ <- case s of 
-            Right _  -> 
+            Right _ -> 
                 updateDoc $ 
-                    el { elOnline = True
-                       , elLastCheck = t 
+                    el { elSuccess = True
                        , elError = Nothing }
 
-            Left  ex -> 
+            Left ex -> 
                 updateDoc $ 
-                    el { elOnline = False 
+                    el { elSuccess = False 
                        , elError = Just ex } 
-                       
+
     putStrLn (show s)
   where
-    updateDoc e = runCouch def $ 
-        couchPut' "elements" chId [] $ e { elFlag = False }
+    updateDoc e = do 
+        nc <- liftM (NextCheck . addUTCTime (5)) getCurrentTime
+        runCouch def $ 
+            couchPut' "elements" chId [] $ e { elNextCheck = Just nc }
 
 processUrl :: Element -> IO (Either CheckError ())
 processUrl Element{..} = do
@@ -92,8 +103,7 @@ processUrl Element{..} = do
             HttpParserException s       -> 
                 HttpError
                 "HttpParserException" $ Just s
-            _                           -> HttpError 
-                (show ex) Nothing
+            _                           -> HttpError (show ex) Nothing
  
 checkUrl :: L.ByteString -> IO (Either CheckError L.ByteString)
 checkUrl url = liftM Right $ simpleHttp (L.unpack url)

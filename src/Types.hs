@@ -1,3 +1,4 @@
+{-# LANGUAGE GeneralizedNewtypeDeriving #-}
 {-# LANGUAGE DeriveDataTypeable #-}
 {-# LANGUAGE OverloadedStrings #-} 
 {-# LANGUAGE RecordWildCards #-}
@@ -11,12 +12,17 @@ module Types
     , Change(..)
 --   , Results(..)
     , CheckError(..)
+    , NextCheck(..)
     ) where
 
 import Control.Applicative
 import Control.Monad
 import Data.Aeson
+import Data.Time.Clock
+import Data.Time.Format
+import System.Locale
 
+import qualified Data.Text as T
 import qualified Data.ByteString.Char8 as S
 import qualified Data.ByteString.Lazy.Char8 as L
 import qualified Data.HashMap.Strict as HM
@@ -25,9 +31,8 @@ data Element = Element {
     elUrl :: L.ByteString
 ,   elRegPositive :: [S.ByteString]
 ,   elRegNegative :: [S.ByteString]
-,   elOnline :: Bool
-,   elFlag :: Bool
-,   elLastCheck :: Integer
+,   elSuccess :: Bool
+,   elNextCheck :: Maybe NextCheck
 ,   elError :: Maybe CheckError
 } deriving (Show)
 
@@ -36,20 +41,18 @@ instance FromJSON Element where
                             v .: "url" <*>
                             v .:? "reg_positive" .!= [] <*>
                             v .:? "reg_negative" .!= [] <*>
-                            v .:? "online" .!= False <*>
-                            v .:? "flag"   .!= True  <*>
-                            v .:? "last_check" .!= 0 <*>
+                            v .:? "success" .!= False <*>
+                            v .:? "next_check" .!= Nothing <*>
                             v .:? "error".!= Nothing
     parseJSON _ = mzero
 
 instance ToJSON Element where
-    toJSON (Element url rp rn online flag lc err) = 
+    toJSON (Element url rp rn s lc err) = 
         object [ "url" .= url
                , "reg_positive" .= rp
                , "reg_negative" .= rn
-               , "online" .= online
-               , "flag" .= flag
-               , "last_check" .= lc
+               , "success" .= s
+               , "next_check" .= lc
                , "error" .= err]
 
 --------------------------------------
@@ -140,8 +143,25 @@ instance ToJSON CheckError where
     toJSON (IOError{..})    = object [ "type" .= ("io"  :: String)
                                      , "exception" .= ioException ]
     toJSON (RegexError{..}) = object [ "type" .= ("regex" :: String)
-                                     , "reg_positive" .= regPositive 
+                                     , "reg_positive" .= regPositive  
                                      , "reg_negative" .= regNegative]
+
+--------------------------------------
+
+newtype NextCheck = NextCheck {
+    fromNC :: UTCTime
+} deriving (Eq, Ord, Show, Read, FormatTime)
+
+instance FromJSON NextCheck where
+    parseJSON (String s) = 
+        case parseTime defaultTimeLocale "%F %T%Q %Z" (T.unpack s) of 
+            Just t       -> return $ NextCheck t
+            Nothing      -> mzero
+    parseJSON _ = mzero
+
+instance ToJSON NextCheck where
+    toJSON t = String (T.pack . show . fromNC $ t)
+
 
 {--------------------------------------
 
