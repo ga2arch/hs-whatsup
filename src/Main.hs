@@ -52,12 +52,10 @@ sinkChanges =
 processElement :: S.ByteString -> Element -> IO ()
 processElement chId el@Element{..} = do
     c <- getCurrentTime
-    case elNextCheck of 
-        Just nc -> if c > (fromNC nc) 
-                    then updateElement chId el 
-                    else (threadDelay $ subn nc c)
-                         >> updateElement chId el
-        Nothing -> updateElement chId el
+
+    when (isJust elNextCheck) $ 
+        threadDelay $ subn (fromJust elNextCheck) c
+    updateElement chId el
   where
     subn (NextCheck nc) n = (round $ diffUTCTime nc n) * 1000000
 
