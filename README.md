@@ -1,0 +1,4 @@
+hs-whatsup
+==========
+
+Haskell worker
