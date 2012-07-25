@@ -34,19 +34,20 @@ main :: IO ()
 main = do
     runCouch def $ do 
         source <- couchContinuousChanges "elements"
-        source $$ sink
+        source $$ sinkChanges
 
-  where
-    sink = awaitForever $ \Change{..} -> do
-            r <- liftIO . try $ runCouch def (couchGet "elements" chId [])  
-            case r of
-                Left (CouchHttpError a _)   -> liftIO $ putStrLn (show a)
-                Left (CouchInternalError e) -> liftIO $ putStrLn (show e)
-                Left (NotModified)          -> liftIO $ putStrLn "Not modified"
-                Right (_, el)               -> if (elFlag el) 
-                                                then liftIO $ 
-                                                    updateElement chId el
-                                                else return ()
+sinkChanges :: MonadCouch m => Pipe l Change o r m r
+sinkChanges = 
+    awaitForever $ \Change{..} -> do
+        r <- liftIO . try $ runCouch def (couchGet "elements" chId [])  
+        case r of
+            Left (CouchHttpError a _)   -> liftIO $ putStrLn (show a)
+            Left (CouchInternalError e) -> liftIO $ putStrLn (show e)
+            Left (NotModified)          -> liftIO $ putStrLn "Not modified"
+            Right (_, el)               -> if (elFlag el) 
+                                            then liftIO $ 
+                                                updateElement chId el
+                                            else return ()
 
 updateElement :: S.ByteString -> Element -> IO ()
 updateElement chId el = do
@@ -77,17 +78,19 @@ processUrl Element{..} = do
     handleIO   ex = return . Left . IOError $ show ex
     handleHttp ex = return . Left $ 
         case ex of 
-            StatusCodeException s _     -> HttpError 
-                                            "StatusCodeException" $ Just $
-                                            (show $ statusCode s) 
-                                            ++ " - " ++ 
-                                            (S.unpack $ statusMessage s)
+            StatusCodeException s _     -> HttpError
+                "StatusCodeException" . Just $
+                (show $ statusCode s) ++ " - " ++ (S.unpack $ statusMessage s)
+
             InvalidUrlException url err -> HttpError 
-                                            "InvalidUrlException" $ Just $
-                                            err ++ " - " ++ url
-            HttpParserException s       -> HttpError
-                                            "HttpParserException" $ Just s
-            _                           -> HttpError (show ex) Nothing
+                "InvalidUrlException" . Just $
+                err ++ " - " ++ url
+
+            HttpParserException s       -> 
+                HttpError
+                "HttpParserException" $ Just s
+            _                           -> HttpError 
+                (show ex) Nothing
  
 checkUrl :: L.ByteString -> IO (Either CheckError L.ByteString)
 checkUrl url = liftM Right $ simpleHttp (L.unpack url)
