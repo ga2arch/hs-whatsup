@@ -44,7 +44,8 @@ main = do
                 Left (CouchInternalError e) -> liftIO $ putStrLn (show e)
                 Left (NotModified)          -> liftIO $ putStrLn "Not modified"
                 Right (_, el)               -> if (elFlag el) 
-                                                then liftIO $ updateElement chId el
+                                                then liftIO $ 
+                                                    updateElement chId el
                                                 else return ()
 
 updateElement :: S.ByteString -> Element -> IO ()
@@ -53,11 +54,14 @@ updateElement chId el = do
     s <- processUrl el
 
     _ <- case s of 
-            Right _   -> updateDoc $ el { elOnline = True
-                                        , elLastCheck = t 
-                                        , elError = Nothing }
-            Left  ex  -> updateDoc $ el { elOnline = False 
-                                        , elError = Just ex } 
+            Right _   -> updateDoc $ 
+                            el { elOnline = True
+                               , elLastCheck = t 
+                               , elError = Nothing }
+
+            Left  ex  -> updateDoc $ 
+                            el { elOnline = False 
+                               , elError = Just ex } 
     putStrLn (show s)
   where
     updateDoc e = runCouch def $ 
